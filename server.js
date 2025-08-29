@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 
 app.use(cors()); // 다른 주소에서의 요청을 허용 (보안)
 app.use(express.json()); // JSON 형태의 데이터를 주고받을 수 있게 설정
-app.use(express.static(path.join(__dirname, 'public'))); // public 폴더를 웹사이트의 기본 폴더로 설정
+app.use(express.static(__dirname)); // 👈 [수정 1] 현재 폴더를 정적 파일 폴더로 설정
 
 // 3. NEON 데이터베이스 연결 설정
 const pool = new Pool({
@@ -19,6 +19,11 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   }
+});
+
+// 👈 [수정 2] 기본 경로 '/'에 대한 처리 추가
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // 4. API (서버의 기능) 만들기
@@ -47,17 +52,19 @@ app.post('/api/orders', async (req, res) => {
 // 기능 2: 특정 사용자의 주문 내역을 데이터베이스에서 찾아서 보내주기
 app.get('/api/orders/:userId', async (req, res) => {
   const { userId } = req.params;
+
   try {
     const query = 'SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC';
-    const result = await pool.query(query, [userId]);
-    res.status(200).json(result.rows); // 조회된 주문 목록 반환
+    const values = [userId];
+    const result = await pool.query(query, values);
+    res.status(200).json(result.rows);
   } catch (error) {
-    console.error('주문 조회 중 에러 발생:', error);
+    console.error('주문 내역 조회 중 에러 발생:', error);
     res.status(500).json({ error: '서버 에러가 발생했습니다.' });
   }
 });
 
 // 5. 서버 실행
 app.listen(port, () => {
-  console.log(`서버가 http://localhost:${port} 에서 실행 중입니다.`);
+  console.log(`서버가 ${port}번 포트에서 실행 중입니다.`);
 });
